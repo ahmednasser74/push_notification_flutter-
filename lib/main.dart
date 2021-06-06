@@ -7,11 +7,11 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'message.dart';
@@ -109,7 +109,7 @@ class Application extends StatefulWidget {
 }
 
 class _Application extends State<Application> {
-  String _token;
+  String _token, userId = '1';
   int _counter = 0;
 
   @override
@@ -182,12 +182,12 @@ class _Application extends State<Application> {
     }
 
     try {
-      await http.post(
-        Uri.parse('https://api.rnfirebase.io/messaging/send'),
-        headers: <String, String>{
+      await Dio().post(
+        'https://api.rnfirebase.io/messaging/send',
+        options: Options(headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: constructFCMPayload(_token),
+        }),
+        data: constructFCMPayload(_token),
       );
       print('FCM request for device sent!');
     } catch (e) {
@@ -307,9 +307,55 @@ class _Application extends State<Application> {
                 ? const CircularProgressIndicator()
                 : Text(token, style: const TextStyle(fontSize: 12));
           })),
+          ChoiceUserWidget(
+            onChanged: (v) {
+              userId = v;
+            },
+          ),
+          TextButton(
+              onPressed: () async {
+                final dio = await Dio().post(
+                    'https://beta.toast.sa/api/user/token/update',
+                    queryParameters: {
+                      'userId': userId,
+                      'token': _token,
+                    });
+
+                print(dio.data);
+              },
+              child: Text('Push User')),
           MetaCard('Message Stream', MessageList()),
         ]),
       ),
+    );
+  }
+}
+
+class ChoiceUserWidget extends StatefulWidget {
+  const ChoiceUserWidget({this.onChanged});
+  final void Function(String v) onChanged;
+  @override
+  _ChoiceUserWidgetState createState() => _ChoiceUserWidgetState();
+}
+
+class _ChoiceUserWidgetState extends State<ChoiceUserWidget> {
+  String value = '1';
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: DropdownButtonFormField(
+          decoration: InputDecoration(labelText: 'User Name'),
+          onChanged: (v) {
+            setState(() {
+              value = v;
+              if (widget.onChanged != null) widget.onChanged(v);
+            });
+          },
+          value: value,
+          items: ['1', '2', '4', '5', '6', '7', '8', '9', '10']
+              .map((e) => DropdownMenuItem<String>(child: Text('$e'), value: e))
+              .toList(growable: false)),
     );
   }
 }
